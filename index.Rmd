@@ -1,13 +1,15 @@
 ---
-title: "TITLE HERE"
+title: "Interpretable machine learning methods"
 description: |
-  DESCRIPTION HERE
+  The predictions of many machine learning algorithms cannot be directly explained.
+  In this workshop we develop model-agnostic methods for explaining the predictions of
+  machine learning models.
 author:
   - name: Benjamin Soltoff
     url: https://www.bensoltoff.com
     affiliation: University of Chicago
     affiliation_url: https://macss.uchicago.edu
-date: "DATE WHEN WORKSHOP WILL BE HELD"
+date: 2022-02-08
 creative_commons: CC BY-NC
 repository_url: https://github.com/css-skills/REPO
 output: distill::distill_article

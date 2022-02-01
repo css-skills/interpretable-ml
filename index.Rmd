@@ -1,0 +1,17 @@
+---
+title: "TITLE HERE"
+description: |
+  DESCRIPTION HERE
+author:
+  - name: Benjamin Soltoff
+    url: https://www.bensoltoff.com
+    affiliation: University of Chicago
+    affiliation_url: https://macss.uchicago.edu
+date: "DATE WHEN WORKSHOP WILL BE HELD"
+creative_commons: CC BY-NC
+repository_url: https://github.com/css-skills/REPO
+output: distill::distill_article
+---
+
+```{r echo = FALSE, child = "README.md"}
+```

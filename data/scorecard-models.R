@@ -8,6 +8,8 @@ data("scorecard")
 scorecard <- scorecard %>%
   # remove ID columns - causing issues when interpreting/explaining
   select(-unitid, -name) %>%
+  # convert factor to character columns
+  mutate(across(.cols = where(is.factor), .f = as.character)) %>%
   # remove any rows with missing values - just makes life easier for explanation methods
   drop_na()
 

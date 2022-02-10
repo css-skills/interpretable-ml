@@ -1,0 +1,343 @@
+---
+title: "Interpretable Machine Learning"
+author: "Computation Skills Workshop"
+output: rcfss::xaringan
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(
+  cache = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  collapse = TRUE,
+  echo = TRUE,
+  fig.retina = 2, fig.width = 12
+)
+
+library(tidyverse)
+library(tidymodels)
+library(ranger)
+library(here)
+library(DALEX)
+library(DALEXtra)
+library(lime)
+library(patchwork)
+library(rcfss)
+library(knitr)
+library(here)
+library(countdown)
+library(flipbookr)
+
+set.seed(123)
+theme_set(theme_minimal(base_size = rcfss::base_size))
+```
+
+class: inverse, center, middle
+
+$$\newcommand{\E}{\mathrm{E}} \newcommand{\Var}{\mathrm{Var}} \newcommand{\Cov}{\mathrm{Cov}} \newcommand{\se}{\text{se}} \newcommand{\Lagr}{\mathcal{L}} \newcommand{\lagr}{\mathcal{l}}$$
+
+# Interpreting and explaining
+
+---
+
+# Interpretation
+
+> Interpretability is the degree to which a human can understand the cause of a decision.
+
+--
+
+> Interpretability is the degree to which a human can consistently predict the model's result.
+
+.footnote[
+Miller, Tim. "Explanation in artificial intelligence: Insights from the social sciences." arXiv Preprint arXiv:1706.07269. (2017).
+
+Kim, Been, Rajiv Khanna, and Oluwasanmi O. Koyejo. "Examples are not enough, learn to criticize! Criticism for interpretability." Advances in Neural Information Processing Systems (2016).
+]
+
+---
+
+# Explanation
+
+**Answer to the "why" question**
+
+- Why did the government collapse?
+- Why was my loan rejected?
+- Why have we not been contacted by alien life yet?
+
+.footnote[Miller, Tim. "Explanation in artificial intelligence: Insights from the social sciences." arXiv Preprint arXiv:1706.07269. (2017).]
+
+
+--
+
+Focus on specific observations
+
+--
+
+Good explanations are:
+
+- Contrastive
+- Selected
+- Social
+- Truthful
+- Generalizable
+
+---
+
+# Global vs. local methods
+
+- Interpretation $\leadsto$ global methods
+- Explanation $\leadsto$ local methods
+
+---
+
+# White-box models
+
+Models that lend themselves naturally to interpretation:
+
+- Linear regression
+- Logistic regression
+- Generalized linear model
+- Decision tree
+
+---
+
+# Black-box model
+
+```{r fig.align = 'center', echo = FALSE}
+include_graphics(path = "https://imgs.xkcd.com/comics/machine_learning.png")
+```
+
+---
+
+# Black-box models
+
+- Random forests
+- Boosted trees
+- Neural networks
+- Deep learning
+
+---
+
+class: inverse, center, middle
+
+<div style="width:100%;height:0;padding-bottom:53%;position:relative;"><iframe src="https://giphy.com/embed/H8LPekEB8uAFXgw97u" width="100%" height="100%" style="position:absolute" frameBorder="0" class="giphy-embed" allowFullScreen></iframe></div>
+
+---
+
+# Predicting student debt
+
+- [College Scorecard](https://collegescorecard.ed.gov/)
+- [`rscorecard`](https://github.com/btskinner/rscorecard)
+
+---
+
+# Predicting student debt
+
+```{r get-data, echo = FALSE}
+# import data and model
+scorecard_train <- read_rds(file = here("data", "scorecard-train.Rds"))
+scorecard_test <- read_rds(file = here("data", "scorecard-test.Rds"))
+model_rf <- read_rds(file = here("data", "model-rf.Rds"))
+model_glmnet <- read_rds(file = here("data", "model-glmnet.Rds"))
+```
+
+```{r skim-data, dependson = "get-data", echo = FALSE}
+glimpse(scorecard)
+```
+
+---
+
+# Construct some models
+
+```{r model-stats, dependson = "get-data", echo = FALSE}
+# predict test set for both models and plot
+test_preds <- bind_rows(
+  `Random forest` = predict(model_rf, new_data = scorecard_test) %>% bind_cols(scorecard_test),
+  `Penalized regression` = predict(model_glmnet, new_data = scorecard_test) %>% bind_cols(scorecard_test),
+  .id = "model"
+)
+
+# calculate test set RMSE
+test_rmse <- test_preds %>%
+  group_by(model) %>%
+  rmse(truth = debt, estimate = .pred) %>%
+  mutate(.estimate = scales::dollar(.estimate, accuracy = 1))
+
+ggplot(data = test_preds, mapping = aes(x = debt, y = .pred)) +
+  geom_abline(linetype = 2) +
+  geom_point(alpha = 0.25) +
+  geom_text(mapping = aes(x = 10000, y = 27000, label = glue::glue("RMSE: {.estimate}")),
+            data = test_rmse, size = 5) +
+  facet_wrap(vars(model)) +
+  scale_x_continuous(labels = scales::dollar) +
+  scale_y_continuous(labels = scales::dollar) +
+  coord_obs_pred() +
+  labs(
+    x = "Average student debt",
+    y = "Predicted student debt"
+  )
+```
+
+---
+
+class: inverse, center, middle
+
+# Local methods
+
+---
+
+class: inverse, center, middle
+
+# Individual conditional expectation curves/Ceteris peribus profiles
+
+---
+
+# Individual conditional expectation
+
+- *Ceteris peribus* - "other things held constant"
+- Marginal effect a feature has on the predictor
+- Plot one line per observation that shows how the observation's prediction changes when a feature changes
+
+--
+
+
+```
+For a selected predictor (x)
+1. Determine grid space of j evenly spaced values across distribution of x
+2: for value i in {1,...,j} of grid space do
+     | set x to i for all observations
+     | apply given ML model
+     | estimate predicted value
+   end
+```
+
+---
+
+# `dalex`
+
+```{r dalex, echo = FALSE}
+include_url(url = "https://dalex.drwhy.ai/", height = "600px")
+```
+
+
+---
+
+# Create explainer objects
+
+```{r explainers, dependons = "get-data"}
+explainer_rf <- explain_tidymodels(
+  model = model_rf,
+  data = scorecard_train %>% select(-debt),
+  y = scorecard_train$debt,
+  label = "random forest"
+)
+
+explainer_glmnet <- explain_tidymodels(
+  model = model_glmnet,
+  data = scorecard_train %>% select(-debt),
+  y = scorecard_train$debt,
+  label = "penalized regression"
+)
+```
+
+---
+
+# Extract observations to explain
+
+```{r uchi, dependson = "get-data"}
+uchi <- filter(.data = scorecard, name == "University of Chicago") %>%
+  select(-unitid, -name) %>%
+  # convert factor to character columns
+  mutate(across(.cols = where(is.factor), .f = as.character)) %>%
+  # needs to be plain data frame, otherwise issues
+  as.data.frame()
+uchi
+```
+
+---
+
+# Create prediction profile
+
+```{r ice-rf, dependson = "explainers"}
+ice_rf <- predict_profile(
+  explainer = explainer_rf,
+  new_observation = uchi
+)
+ice_rf
+```
+
+---
+
+# Explain net cost
+
+```{r ice-netcost, dependson = "ice-rf", fig.height = 6}
+plot(ice_rf, variables = "netcost")
+```
+
+---
+
+# Explain locale
+
+```{r ice-type, dependson = "ice-rf", fig.height = 6}
+plot(ice_rf, variables = "locale", variable_type = "categorical", categorical_type = "bars")
+```
+
+---
+
+# Multiple variables
+
+```{r ice-all, dependson = "ice-rf", fig.height = 6}
+plot(ice_rf)
+```
+
+---
+
+# Multiple models
+
+```{r ice-netcost-both-mods, dependson = "explainers", fig.height = 5}
+ice_glmnet <- predict_profile(
+  explainer = explainer_glmnet,
+  new_observation = uchi
+)
+
+plot(ice_glmnet, ice_rf)
+```
+
+---
+
+# Individual conditional expectation
+
+### Pros
+
+- Uniform
+- Easy to interpret
+- Graphical representation
+
+---
+
+class: inverse, center, middle
+
+# Shapley values
+
+
+---
+
+class: inverse, center, middle
+
+# LIME
+
+
+---
+
+class: inverse, center, middle
+
+# Permutation-based feature importance
+
+
+---
+
+class: inverse, center, middle
+
+# Partial dependence plots
+

@@ -5,7 +5,9 @@ library(here)
 
 # get scorecard dataset
 data("scorecard")
-scorecard
+scorecard <- scorecard %>%
+  # remove ID columns - causing issues when interpreting/explaining
+  select(-unitid, -name)
 
 # split into training and testing
 set.seed(123)
@@ -20,8 +22,6 @@ scorecard_folds <- vfold_cv(data = scorecard_train, v = 10)
 
 # basic feature engineering recipe
 scorecard_rec <- recipe(debt ~ ., data = scorecard_train) %>%
-  # exclude ID variables
-  update_role(unitid, name, new_role = "id variable") %>%
   # catch all category for missing state values
   step_novel(state) %>%
   # use median imputation for numeric predictors
@@ -87,8 +87,8 @@ glmnet_tune <- tune_grid(
 # select best model
 glmnet_best <- select_best(glmnet_tune, metric = "rmse")
 glmnet_final <- finalize_workflow(glmnet_workflow, glmnet_best) %>%
-  last_fit(scorecard_split)
-extract_workflow(x = glmnet_final) %>%
+  last_fit(scorecard_split) %>%
+  extract_workflow() %>%
   write_rds(file = here("data", "model-glmnet.Rds"))
 
 

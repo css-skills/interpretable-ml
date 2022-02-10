@@ -7,7 +7,9 @@ library(here)
 data("scorecard")
 scorecard <- scorecard %>%
   # remove ID columns - causing issues when interpreting/explaining
-  select(-unitid, -name)
+  select(-unitid, -name) %>%
+  # remove any rows with missing values - just makes life easier for explanation methods
+  drop_na()
 
 # split into training and testing
 set.seed(123)

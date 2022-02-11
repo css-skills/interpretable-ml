@@ -7,9 +7,9 @@ author:
     url: https://www.bensoltoff.com
     affiliation: University of Chicago
     affiliation_url: https://macss.uchicago.edu
-date: 2022-02-08
+date: 2022-02-15
 creative_commons: CC BY-NC
-repository_url: https://github.com/css-skills/REPO
+repository_url: https://github.com/css-skills/interpretable-ml
 output: distill::distill_article
 ---
 

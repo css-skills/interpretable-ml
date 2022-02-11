@@ -1,12 +1,11 @@
 ## Overview
 
-Machine learning algorithms are widely used in data science applications and have significant potential to improve predictions and understanding of social scientific processes. However machine learning models generally do not explain their predictions -- they simply seek to minimize some loss function and provide for a given observation the probability of an event occurring. In many applications researchers need to be able to explain why the model made one prediction over another. This emphasis on **interpretability** is directly relevant to many social scientific questions, and can provide necessary context for decision makers who need to use machine learning models but lack a strong technical background. In this workshop we introduce several techniques for interpreting black box models using model-agnostic techniques.
+Machine learning algorithms are widely used in data science applications and have significant potential to improve predictions and understanding of social scientific processes. However machine learning models generally do not explain their predictions -- they simply seek to minimize some loss function and provide for a given observation the probability of an event occurring. In many applications researchers need to be able to explain why the model made one prediction over another. This emphasis on **interpretability** and **explanation** is directly relevant to many social scientific questions, and can provide necessary context for decision makers who need to use machine learning models but lack a strong technical background. In this workshop we introduce several techniques for interpreting black box models using model-agnostic techniques.
 
 ## Objectives
 
-- Define interpretability and its importance to machine learning
-- Identify algorithms for interpretable models
-- Define model-agnostic methods for creating explanations
+- Define interpretation and explanation, and their importance to machine learning
+- Identify model-agnostic methods for creating interpretations/explanations
 - Implement techniques for creating global model-agnostic explanations in R
 - Implement techniques for creating local model-agnostic explanations in R
 

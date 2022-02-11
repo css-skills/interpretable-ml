@@ -1,5 +1,5 @@
 ---
-title: "Interpretable machine learning methods"
+title: "Interpreting and explaining machine learning models"
 description: |
   Machine learning algorithms are widely used in data science applications and have significant potential to improve predictions and understanding of social scientific processes. In many applications researchers need to be able to explain why the model made one prediction over another. In this workshop we introduce several techniques for interpreting black box models using model-agnostic techniques.
 author:

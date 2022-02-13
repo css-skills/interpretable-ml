@@ -17,10 +17,8 @@ scorecard <- scorecard %>%
 set.seed(123)
 
 scorecard_split <- initial_split(data = scorecard, prop = .75, strata = debt)
-scorecard_train <- training(scorecard_split) %>%
-  write_rds(file = here("data", "scorecard-train.Rds"))
-scorecard_test <- testing(scorecard_split) %>%
-  write_rds(file = here("data", "scorecard-test.Rds"))
+scorecard_train <- training(scorecard_split)
+scorecard_test <- testing(scorecard_split)
 
 scorecard_folds <- vfold_cv(data = scorecard_train, v = 10)
 
@@ -55,9 +53,6 @@ rf_wf <- fit(
   data = scorecard_train
 )
 
-# save final model to disk
-write_rds(x = rf_wf, file = here("data", "model-rf.Rds"))
-
 # fit penalized regression model
 ## recipe
 glmnet_recipe <- scorecard_rec %>%
@@ -90,12 +85,31 @@ glmnet_tune <- tune_grid(
 
 # select best model
 glmnet_best <- select_best(glmnet_tune, metric = "rmse")
-glmnet_final <- finalize_workflow(glmnet_workflow, glmnet_best) %>%
+glmnet_wf <- finalize_workflow(glmnet_workflow, glmnet_best) %>%
   last_fit(scorecard_split) %>%
-  extract_workflow() %>%
-  write_rds(file = here("data", "model-glmnet.Rds"))
+  extract_workflow()
 
+# nearest neighbors model
+## use glmnet recipe
+kknn_spec <- nearest_neighbor(neighbors = 10) %>%
+  set_mode("regression") %>%
+  set_engine("kknn")
 
+kknn_workflow <-
+  workflow() %>%
+  add_recipe(glmnet_recipe) %>%
+  add_model(kknn_spec)
+
+## fit using training set
+set.seed(123)
+kknn_wf <- fit(
+  kknn_workflow,
+  data = scorecard_train
+)
+
+# save all required objects to a .Rdata file
+save(scorecard_train, scorecard_test, rf_wf, glmnet_wf, kknn_wf,
+     file = here("data", "models.RData"))
 
 
 

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="" xml:lang="">
   <head>
-    <title>Interpretable Machine Learning</title>
+    <title>Interpreting and explaining machine learning models</title>
     <meta charset="utf-8" />
     <meta name="author" content="Computation Skills Workshop" />
     <script src="libs/header-attrs/header-attrs.js"></script>
@@ -13,21 +13,13 @@
     <textarea id="source">
 class: center, middle, inverse, title-slide
 
-# Interpretable Machine Learning
+# Interpreting and explaining machine learning models
 ### Computation Skills Workshop
 
 ---
 
 
 
-
-class: inverse, center, middle
-
-`$$\newcommand{\E}{\mathrm{E}} \newcommand{\Var}{\mathrm{Var}} \newcommand{\Cov}{\mathrm{Cov}} \newcommand{\se}{\text{se}} \newcommand{\Lagr}{\mathcal{L}} \newcommand{\lagr}{\mathcal{l}}$$`
-
-# Interpreting and explaining
-
----
 
 # Interpretation
 
@@ -79,7 +71,7 @@ Good explanations are:
 
 ---
 
-# White-box models
+# White-box model
 
 Models that lend themselves naturally to interpretation:
 
@@ -96,7 +88,7 @@ Models that lend themselves naturally to interpretation:
 
 ---
 
-# Black-box models
+# Black-box model
 
 - Random forests
 - Boosted trees
@@ -241,6 +233,12 @@ For a selected predictor (x)
 
 class: inverse, center, middle
 
+# Interpreting with `DALEX`
+
+---
+
+class: inverse, center, middle
+
 # Local methods
 
 ---
@@ -298,8 +296,15 @@ class: inverse, center, middle
 
 ---
 
-&lt;img src="index_files/figure-html/shap-both-1.png" width="864" /&gt;
+# Shapley Additive Explanations (SHAP)
 
+&lt;img src="index_files/figure-html/shap-rf-kknn-1.png" width="864" /&gt;
+
+---
+
+# Shapley Additive Explanations (SHAP)
+
+&lt;img src="index_files/figure-html/shap-both-1.png" width="864" /&gt;
 
 ---
 
@@ -314,7 +319,6 @@ class: inverse, center, middle
 * Global `\(\rightarrow\)` local
 * Interpretable model used to explain individual predictions of a black box model
 * Assumes every complex model is linear on a local scale
-* Fit a simple model around a single observation to mimic how the global model behaves at that locality
 * Simple model explains the predictions of the complex model **locally**
     * Local fidelity
     * Does not require global fidelity
@@ -350,6 +354,12 @@ class: inverse, center, middle
 # Random forest
 
 &lt;img src="index_files/figure-html/unnamed-chunk-4-1.png" width="864" /&gt;
+
+---
+
+class: inverse, center, middle
+
+# Explaining with `DALEX` and `lime`
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
 <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>

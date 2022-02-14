@@ -1,5 +1,5 @@
 ---
-title: "Interpretable Machine Learning"
+title: "Interpreting and explaining machine learning models"
 author: "Computation Skills Workshop"
 output: rcfss::xaringan
 ---
@@ -32,14 +32,6 @@ library(flipbookr)
 set.seed(123)
 theme_set(theme_minimal(base_size = rcfss::base_size))
 ```
-
-class: inverse, center, middle
-
-$$\newcommand{\E}{\mathrm{E}} \newcommand{\Var}{\mathrm{Var}} \newcommand{\Cov}{\mathrm{Cov}} \newcommand{\se}{\text{se}} \newcommand{\Lagr}{\mathcal{L}} \newcommand{\lagr}{\mathcal{l}}$$
-
-# Interpreting and explaining
-
----
 
 # Interpretation
 
@@ -91,7 +83,7 @@ Good explanations are:
 
 ---
 
-# White-box models
+# White-box model
 
 Models that lend themselves naturally to interpretation:
 
@@ -110,7 +102,7 @@ include_graphics(path = "https://imgs.xkcd.com/comics/machine_learning.png")
 
 ---
 
-# Black-box models
+# Black-box model
 
 - Random forests
 - Boosted trees
@@ -366,6 +358,12 @@ model_profile(explainer_rf, variables = "type", N = NULL) %>%
 
 class: inverse, center, middle
 
+# Interpreting with `DALEX`
+
+---
+
+class: inverse, center, middle
+
 # Local methods
 
 ---
@@ -427,11 +425,11 @@ plot(bd1_rf_distr, plot_distributions = TRUE) +
 # Breakdown of random forest
 
 ```{r bd-rf-random, dependson = c("explainers", "local-obs"), fig.height = 8}
-rsample <- map(1:6, function(i){
+rsample <- map(1:6, function(i) {
   new_order <- sample(1:12)
   bd <- predict_parts(explainer_rf, uchi, order = new_order, type = "break_down")
   bd$variable <- as.character(bd$variable)
-  bd$label = paste("random order no.", i)
+  bd$label <- paste("random order no.", i)
   plot(bd)
 })
 wrap_plots(rsample, ncol = 2)
@@ -461,7 +459,9 @@ plot(shap_uchi_rf)
 
 ---
 
-```{r shap-both, dependson = c("explainers", "local-obs")}
+# Shapley Additive Explanations (SHAP)
+
+```{r shap-rf-kknn, dependson = c("explainers", "local-obs")}
 # explain uchicago with rf model
 shap_uchi_kknn <- predict_parts(
   explainer = explainer_kknn,
@@ -473,6 +473,26 @@ plot(shap_uchi_rf) +
   plot(shap_uchi_kknn)
 ```
 
+---
+
+# Shapley Additive Explanations (SHAP)
+
+```{r shap-both, dependson = c("explainers", "local-obs")}
+# explain uchicago with rf model
+shap_wiu_rf <- predict_parts(
+  explainer = explainer_rf,
+  new_observation = wiu,
+  type = "shap"
+)
+
+{
+  plot(shap_uchi_rf) +
+    ggtitle("University of Chicago")
+} + {
+  plot(shap_wiu_rf) +
+    ggtitle("Western Illinois University")
+}
+```
 
 ---
 
@@ -487,7 +507,6 @@ class: inverse, center, middle
 * Global $\rightarrow$ local
 * Interpretable model used to explain individual predictions of a black box model
 * Assumes every complex model is linear on a local scale
-* Fit a simple model around a single observation to mimic how the global model behaves at that locality
 * Simple model explains the predictions of the complex model **locally**
     * Local fidelity
     * Does not require global fidelity
@@ -583,3 +602,9 @@ plot_features(explanation_rf) +
   theme_minimal(base_size = 14) +
   theme(legend.position = "bottom")
 ```
+
+---
+
+class: inverse, center, middle
+
+# Explaining with `DALEX` and `lime`

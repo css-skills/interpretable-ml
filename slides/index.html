@@ -208,7 +208,7 @@ class: inverse, center, middle
 - *Ceteris peribus* - "other things held constant"
 - Marginal effect a feature has on the predictor
 - Plot one line per observation that shows how the observation's prediction changes when a feature changes
-- PDP is average of all ICEs
+- Partial dependence plot is average of all ICEs
 
 
 --
@@ -253,6 +253,56 @@ class: inverse, center, middle
 
 ---
 
+# University of Chicago
+
+
+```
+## # A tibble: 1 × 12
+##   state type    admrate satavg  cost netcost avgfacsal pctpell comprate firstgen
+##   &lt;chr&gt; &lt;fct&gt;     &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;
+## 1 IL    Privat…  0.0617   1528 78555   27315    166923   0.114    0.947    0.202
+## # … with 2 more variables: debt &lt;dbl&gt;, locale &lt;fct&gt;
+```
+
+---
+
+# Breakdown of random forest
+
+&lt;img src="index_files/figure-html/bd-rf-1-1.png" width="864" /&gt;
+
+---
+
+# Breakdown of random forest
+
+&lt;img src="index_files/figure-html/bd-rf-2-1.png" width="864" /&gt;
+
+---
+
+# Breakdown of random forest
+
+&lt;img src="index_files/figure-html/bd-rf-random-1.png" width="864" /&gt;
+
+---
+
+# Shapley Additive Explanations (SHAP)
+
+&lt;img src="index_files/figure-html/shap-uchi-1.png" width="864" /&gt;
+
+---
+
+# Shapley Additive Explanations (SHAP)
+
+- Average contributions of features are computed under different coalitions of feature orderings
+- Randomly permute feature order using `\(B\)` combinations
+- Average across individual breakdowns to calculate feature contribution to individual prediction
+
+---
+
+&lt;img src="index_files/figure-html/shap-both-1.png" width="864" /&gt;
+
+
+---
+
 class: inverse, center, middle
 
 # LIME
@@ -268,7 +318,15 @@ class: inverse, center, middle
 * Simple model explains the predictions of the complex model **locally**
     * Local fidelity
     * Does not require global fidelity
+* Works on tabular, text, and image data
 
+---
+
+# LIME
+
+&lt;img src="https://ema.drwhy.ai/figure/lime_introduction.png" width="78%" style="display: block; margin: auto;" /&gt;
+
+.footnote[Source: [*Explanatory Model Analysis*](https://ema.drwhy.ai/LIME.html)]
 ---
 
 # LIME
@@ -292,10 +350,6 @@ class: inverse, center, middle
 # Random forest
 
 &lt;img src="index_files/figure-html/unnamed-chunk-4-1.png" width="864" /&gt;
-
-
-
-
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
 <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>

@@ -167,8 +167,10 @@ test_rmse <- test_preds %>%
 ggplot(data = test_preds, mapping = aes(x = debt, y = .pred)) +
   geom_abline(linetype = 2) +
   geom_point(alpha = 0.25) +
-  geom_text(mapping = aes(x = 10000, y = 27000, label = glue::glue("RMSE: {.estimate}")),
-            data = test_rmse, size = 5) +
+  geom_text(
+    mapping = aes(x = 10000, y = 27000, label = glue::glue("RMSE: {.estimate}")),
+    data = test_rmse, size = 5
+  ) +
   facet_wrap(vars(model)) +
   scale_x_continuous(labels = scales::dollar) +
   scale_y_continuous(labels = scales::dollar) +
@@ -176,7 +178,8 @@ ggplot(data = test_preds, mapping = aes(x = debt, y = .pred)) +
   labs(
     x = "Average student debt",
     y = "Predicted student debt"
-  )
+  ) +
+  theme_minimal(base_size = 18)
 ```
 
 ---
@@ -259,38 +262,45 @@ plot(vip_rf) +
 ggplot_imp <- function(...) {
   obj <- list(...)
   metric_name <- attr(obj[[1]], "loss_name")
-  metric_lab <- paste(metric_name, 
-                      "after permutations\n(higher indicates more important)")
-  
+  metric_lab <- paste(
+    metric_name,
+    "after permutations\n(higher indicates more important)"
+  )
+
   full_vip <- bind_rows(obj) %>%
     filter(variable != "_baseline_")
-  
-  perm_vals <- full_vip %>% 
-    filter(variable == "_full_model_") %>% 
-    group_by(label) %>% 
+
+  perm_vals <- full_vip %>%
+    filter(variable == "_full_model_") %>%
+    group_by(label) %>%
     summarise(dropout_loss = mean(dropout_loss))
-  
+
   p <- full_vip %>%
-    filter(variable != "_full_model_") %>% 
+    filter(variable != "_full_model_") %>%
     mutate(variable = fct_reorder(variable, dropout_loss)) %>%
-    ggplot(aes(dropout_loss, variable)) 
-  if(length(obj) > 1) {
-    p <- p + 
+    ggplot(aes(dropout_loss, variable))
+  if (length(obj) > 1) {
+    p <- p +
       facet_wrap(vars(label)) +
-      geom_vline(data = perm_vals, aes(xintercept = dropout_loss, color = label),
-                 size = 1.4, lty = 2, alpha = 0.7) +
+      geom_vline(
+        data = perm_vals, aes(xintercept = dropout_loss, color = label),
+        size = 1.4, lty = 2, alpha = 0.7
+      ) +
       geom_boxplot(aes(color = label, fill = label), alpha = 0.2)
   } else {
-    p <- p + 
-      geom_vline(data = perm_vals, aes(xintercept = dropout_loss),
-                 size = 1.4, lty = 2, alpha = 0.7) +
+    p <- p +
+      geom_vline(
+        data = perm_vals, aes(xintercept = dropout_loss),
+        size = 1.4, lty = 2, alpha = 0.7
+      ) +
       geom_boxplot(fill = "#91CBD765", alpha = 0.4)
-    
   }
   p +
     theme(legend.position = "none") +
-    labs(x = metric_lab, 
-         y = NULL,  fill = NULL,  color = NULL)
+    labs(
+      x = metric_lab,
+      y = NULL, fill = NULL, color = NULL
+    )
 }
 
 vip_rf <- model_parts(explainer_rf, N = NULL)
@@ -313,7 +323,7 @@ class: inverse, center, middle
 - *Ceteris peribus* - "other things held constant"
 - Marginal effect a feature has on the predictor
 - Plot one line per observation that shows how the observation's prediction changes when a feature changes
-- PDP is average of all ICEs
+- Partial dependence plot is average of all ICEs
 
 
 --
@@ -374,6 +384,98 @@ both <- bind_rows(uchi, wiu)
 
 ---
 
+# University of Chicago
+
+```{r uchi, dependson = "local-obs"}
+uchi
+```
+
+---
+
+# Breakdown of random forest
+
+```{r bd-rf-1, dependson = c("explainers", "local-obs")}
+bd1_rf_distr <- predict_parts(
+  explainer = explainer_rf,
+  new_observation = uchi,
+  type = "break_down",
+  order = NULL,
+  keep_distributions = TRUE
+)
+plot(bd1_rf_distr, plot_distributions = TRUE)
+```
+
+---
+
+# Breakdown of random forest
+
+```{r bd-rf-2, dependson = c("explainers", "local-obs")}
+bd2_rf_distr <- predict_parts(
+  explainer = explainer_rf,
+  new_observation = uchi,
+  type = "break_down",
+  order = names(uchi),
+  keep_distributions = TRUE
+)
+
+plot(bd1_rf_distr, plot_distributions = TRUE) +
+  plot(bd2_rf_distr, plot_distributions = TRUE)
+```
+
+---
+
+# Breakdown of random forest
+
+```{r bd-rf-random, dependson = c("explainers", "local-obs"), fig.height = 8}
+rsample <- map(1:6, function(i){
+  new_order <- sample(1:12)
+  bd <- predict_parts(explainer_rf, uchi, order = new_order, type = "break_down")
+  bd$variable <- as.character(bd$variable)
+  bd$label = paste("random order no.", i)
+  plot(bd)
+})
+wrap_plots(rsample, ncol = 2)
+```
+
+---
+
+# Shapley Additive Explanations (SHAP)
+
+```{r shap-uchi, dependson = c("explainers", "local-obs")}
+# explain uchicago with rf model
+shap_uchi_rf <- predict_parts(
+  explainer = explainer_rf,
+  new_observation = uchi,
+  type = "shap"
+)
+plot(shap_uchi_rf)
+```
+
+---
+
+# Shapley Additive Explanations (SHAP)
+
+- Average contributions of features are computed under different coalitions of feature orderings
+- Randomly permute feature order using $B$ combinations
+- Average across individual breakdowns to calculate feature contribution to individual prediction
+
+---
+
+```{r shap-both, dependson = c("explainers", "local-obs")}
+# explain uchicago with rf model
+shap_uchi_kknn <- predict_parts(
+  explainer = explainer_kknn,
+  new_observation = uchi,
+  type = "shap"
+)
+
+plot(shap_uchi_rf) +
+  plot(shap_uchi_kknn)
+```
+
+
+---
+
 class: inverse, center, middle
 
 # LIME
@@ -389,7 +491,17 @@ class: inverse, center, middle
 * Simple model explains the predictions of the complex model **locally**
     * Local fidelity
     * Does not require global fidelity
+* Works on tabular, text, and image data
 
+---
+
+# LIME
+
+```{r lime-viz, fig.align = "center", out.width = "78%"}
+include_graphics(path = "https://ema.drwhy.ai/figure/lime_introduction.png")
+```
+
+.footnote[Source: [*Explanatory Model Analysis*](https://ema.drwhy.ai/LIME.html)]
 ---
 
 # LIME
@@ -429,7 +541,8 @@ lime_explainer_kknn <- lime(
 explanation_kknn <- explain(
   x = both,
   explainer = lime_explainer_kknn,
-  n_features = 10)
+  n_features = 10
+)
 
 plot_features(explanation_kknn) +
   theme_minimal(base_size = 14) +
@@ -463,13 +576,10 @@ lime_explainer_rf <- lime(
 explanation_rf <- explain(
   x = both,
   explainer = lime_explainer_rf,
-  n_features = 10)
+  n_features = 10
+)
 
 plot_features(explanation_rf) +
   theme_minimal(base_size = 14) +
   theme(legend.position = "bottom")
 ```
-
-
-
-

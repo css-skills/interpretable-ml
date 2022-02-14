@@ -7,11 +7,11 @@ output: rcfss::xaringan
 ```{r setup, include=FALSE}
 options(htmltools.dir.version = FALSE)
 knitr::opts_chunk$set(
+  echo = FALSE,
   cache = TRUE,
   message = FALSE,
   warning = FALSE,
   collapse = TRUE,
-  echo = TRUE,
   fig.retina = 2, fig.width = 12
 )
 
@@ -119,9 +119,11 @@ include_graphics(path = "https://imgs.xkcd.com/comics/machine_learning.png")
 
 ---
 
-class: inverse, center, middle
+class: inverse
 
-<div style="width:100%;height:0;padding-bottom:53%;position:relative;"><iframe src="https://giphy.com/embed/H8LPekEB8uAFXgw97u" width="100%" height="100%" style="position:absolute" frameBorder="0" class="giphy-embed" allowFullScreen></iframe></div>
+```{r fig.align = "center"}
+include_graphics(path = "https://media.giphy.com/media/H8LPekEB8uAFXgw97u/giphy.gif")
+```
 
 ---
 
@@ -136,10 +138,7 @@ class: inverse, center, middle
 
 ```{r get-data, echo = FALSE}
 # import data and model
-scorecard_train <- read_rds(file = here("data", "scorecard-train.Rds"))
-scorecard_test <- read_rds(file = here("data", "scorecard-test.Rds"))
-model_rf <- read_rds(file = here("data", "model-rf.Rds"))
-model_glmnet <- read_rds(file = here("data", "model-glmnet.Rds"))
+load(here("data", "models.Rdata"))
 ```
 
 ```{r skim-data, dependson = "get-data", echo = FALSE}
@@ -153,8 +152,9 @@ glimpse(scorecard)
 ```{r model-stats, dependson = "get-data", echo = FALSE}
 # predict test set for both models and plot
 test_preds <- bind_rows(
-  `Random forest` = predict(model_rf, new_data = scorecard_test) %>% bind_cols(scorecard_test),
-  `Penalized regression` = predict(model_glmnet, new_data = scorecard_test) %>% bind_cols(scorecard_test),
+  `Random forest` = predict(rf_wf, new_data = scorecard_test) %>% bind_cols(scorecard_test),
+  `Penalized regression` = predict(glmnet_wf, new_data = scorecard_test) %>% bind_cols(scorecard_test),
+  `K nearest neighbors` = predict(kknn_wf, new_data = scorecard_test) %>% bind_cols(scorecard_test),
   .id = "model"
 )
 
@@ -183,13 +183,128 @@ ggplot(data = test_preds, mapping = aes(x = debt, y = .pred)) +
 
 class: inverse, center, middle
 
-# Local methods
+# Global interpretation methods
 
 ---
 
 class: inverse, center, middle
 
-# Individual conditional expectation curves/Ceteris peribus profiles
+# Permutation-based feature importance
+
+---
+
+# Permutation-based feature importance
+
+* Calculate the increase in the model's prediction error after **permuting** the feature
+    * Randomly shuffle the feature's values across observations
+* Important feature
+* Unimportant feature
+
+--
+
+```
+For any given loss function do
+1: compute loss function for original model
+2: for variable i in {1,...,p} do
+     | randomize values
+     | apply given ML model
+     | estimate loss function
+     | compute feature importance (permuted loss / original loss)
+   end
+3. Sort variables by descending feature importance   
+```
+
+---
+
+# Random forest feature importance
+
+```{r explainers, dependons = "get-data"}
+explainer_glmnet <- explain_tidymodels(
+  model = glmnet_wf,
+  data = scorecard_train %>% select(-debt),
+  y = scorecard_train$debt,
+  label = "penalized regression",
+  verbose = FALSE
+)
+
+explainer_rf <- explain_tidymodels(
+  model = rf_wf,
+  data = scorecard_train %>% select(-debt),
+  y = scorecard_train$debt,
+  label = "random forest",
+  verbose = FALSE
+)
+
+explainer_kknn <- explain_tidymodels(
+  model = kknn_wf,
+  data = scorecard_train %>% select(-debt),
+  y = scorecard_train$debt,
+  label = "k nearest neighbors",
+  verbose = FALSE
+)
+```
+
+```{r vip-rf, dependson = "explainers"}
+# random forest model first
+vip_rf <- model_parts(explainer_rf, N = NULL)
+plot(vip_rf) +
+  theme_minimal(base_size = rcfss::base_size) +
+  theme(legend.position = "none")
+```
+
+---
+
+```{r vip-all, dependson = "explainers"}
+# plot variable importance
+ggplot_imp <- function(...) {
+  obj <- list(...)
+  metric_name <- attr(obj[[1]], "loss_name")
+  metric_lab <- paste(metric_name, 
+                      "after permutations\n(higher indicates more important)")
+  
+  full_vip <- bind_rows(obj) %>%
+    filter(variable != "_baseline_")
+  
+  perm_vals <- full_vip %>% 
+    filter(variable == "_full_model_") %>% 
+    group_by(label) %>% 
+    summarise(dropout_loss = mean(dropout_loss))
+  
+  p <- full_vip %>%
+    filter(variable != "_full_model_") %>% 
+    mutate(variable = fct_reorder(variable, dropout_loss)) %>%
+    ggplot(aes(dropout_loss, variable)) 
+  if(length(obj) > 1) {
+    p <- p + 
+      facet_wrap(vars(label)) +
+      geom_vline(data = perm_vals, aes(xintercept = dropout_loss, color = label),
+                 size = 1.4, lty = 2, alpha = 0.7) +
+      geom_boxplot(aes(color = label, fill = label), alpha = 0.2)
+  } else {
+    p <- p + 
+      geom_vline(data = perm_vals, aes(xintercept = dropout_loss),
+                 size = 1.4, lty = 2, alpha = 0.7) +
+      geom_boxplot(fill = "#91CBD765", alpha = 0.4)
+    
+  }
+  p +
+    theme(legend.position = "none") +
+    labs(x = metric_lab, 
+         y = NULL,  fill = NULL,  color = NULL)
+}
+
+vip_rf <- model_parts(explainer_rf, N = NULL)
+vip_glmnet <- model_parts(explainer_glmnet, N = NULL)
+vip_kknn <- model_parts(explainer_kknn, N = NULL)
+
+ggplot_imp(vip_rf, vip_glmnet, vip_kknn)
+```
+
+---
+
+class: inverse, center, middle
+
+# Partial dependence plots
 
 ---
 
@@ -198,6 +313,8 @@ class: inverse, center, middle
 - *Ceteris peribus* - "other things held constant"
 - Marginal effect a feature has on the predictor
 - Plot one line per observation that shows how the observation's prediction changes when a feature changes
+- PDP is average of all ICEs
+
 
 --
 
@@ -209,110 +326,37 @@ For a selected predictor (x)
      | set x to i for all observations
      | apply given ML model
      | estimate predicted value
+     | if PDP: average predicted values across all observations
    end
 ```
 
 ---
 
-# `dalex`
+# Net cost
 
-```{r dalex, echo = FALSE}
-include_url(url = "https://dalex.drwhy.ai/", height = "600px")
-```
+```{r pdp-netcost, dependson = "explainers"}
+# basic pdp for RF model and netcost variable
+pdp_netcost <- model_profile(explainer_rf, variables = "netcost", N = 100)
 
-
----
-
-# Create explainer objects
-
-```{r explainers, dependons = "get-data"}
-explainer_rf <- explain_tidymodels(
-  model = model_rf,
-  data = scorecard_train %>% select(-debt),
-  y = scorecard_train$debt,
-  label = "random forest"
-)
-
-explainer_glmnet <- explain_tidymodels(
-  model = model_glmnet,
-  data = scorecard_train %>% select(-debt),
-  y = scorecard_train$debt,
-  label = "penalized regression"
-)
+## PDP with ICE curves
+plot(pdp_netcost, geom = "profiles")
 ```
 
 ---
 
-# Extract observations to explain
+# Type
 
-```{r uchi, dependson = "get-data"}
-uchi <- filter(.data = scorecard, name == "University of Chicago") %>%
-  select(-unitid, -name) %>%
-  # convert factor to character columns
-  mutate(across(.cols = where(is.factor), .f = as.character)) %>%
-  # needs to be plain data frame, otherwise issues
-  as.data.frame()
-uchi
+```{r pdp-type, dependson = "explainers"}
+# PDP for type
+model_profile(explainer_rf, variables = "type", N = NULL) %>%
+  plot()
 ```
 
 ---
 
-# Create prediction profile
+class: inverse, center, middle
 
-```{r ice-rf, dependson = "explainers"}
-ice_rf <- predict_profile(
-  explainer = explainer_rf,
-  new_observation = uchi
-)
-ice_rf
-```
-
----
-
-# Explain net cost
-
-```{r ice-netcost, dependson = "ice-rf", fig.height = 6}
-plot(ice_rf, variables = "netcost")
-```
-
----
-
-# Explain locale
-
-```{r ice-type, dependson = "ice-rf", fig.height = 6}
-plot(ice_rf, variables = "locale", variable_type = "categorical", categorical_type = "bars")
-```
-
----
-
-# Multiple variables
-
-```{r ice-all, dependson = "ice-rf", fig.height = 6}
-plot(ice_rf)
-```
-
----
-
-# Multiple models
-
-```{r ice-netcost-both-mods, dependson = "explainers", fig.height = 5}
-ice_glmnet <- predict_profile(
-  explainer = explainer_glmnet,
-  new_observation = uchi
-)
-
-plot(ice_glmnet, ice_rf)
-```
-
----
-
-# Individual conditional expectation
-
-### Pros
-
-- Uniform
-- Easy to interpret
-- Graphical representation
+# Local methods
 
 ---
 
@@ -327,17 +371,4 @@ class: inverse, center, middle
 
 # LIME
 
-
----
-
-class: inverse, center, middle
-
-# Permutation-based feature importance
-
-
----
-
-class: inverse, center, middle
-
-# Partial dependence plots
 

@@ -105,9 +105,9 @@ Models that lend themselves naturally to interpretation:
 
 ---
 
-class: inverse, center, middle
+class: inverse
 
-&lt;div style="width:100%;height:0;padding-bottom:53%;position:relative;"&gt;&lt;iframe src="https://giphy.com/embed/H8LPekEB8uAFXgw97u" width="100%" height="100%" style="position:absolute" frameBorder="0" class="giphy-embed" allowFullScreen&gt;&lt;/iframe&gt;&lt;/div&gt;
+&lt;img src="https://media.giphy.com/media/H8LPekEB8uAFXgw97u/giphy.gif" style="display: block; margin: auto;" /&gt;
 
 ---
 
@@ -152,13 +152,54 @@ class: inverse, center, middle
 
 class: inverse, center, middle
 
-# Local methods
+# Global interpretation methods
 
 ---
 
 class: inverse, center, middle
 
-# Individual conditional expectation curves/Ceteris peribus profiles
+# Permutation-based feature importance
+
+---
+
+# Permutation-based feature importance
+
+* Calculate the increase in the model's prediction error after **permuting** the feature
+    * Randomly shuffle the feature's values across observations
+* Important feature
+* Unimportant feature
+
+--
+
+```
+For any given loss function do
+1: compute loss function for original model
+2: for variable i in {1,...,p} do
+     | randomize values
+     | apply given ML model
+     | estimate loss function
+     | compute feature importance (permuted loss / original loss)
+   end
+3. Sort variables by descending feature importance   
+```
+
+---
+
+# Random forest feature importance
+
+
+
+&lt;img src="index_files/figure-html/vip-rf-1.png" width="864" /&gt;
+
+---
+
+&lt;img src="index_files/figure-html/vip-all-1.png" width="864" /&gt;
+
+---
+
+class: inverse, center, middle
+
+# Partial dependence plots
 
 ---
 
@@ -167,6 +208,8 @@ class: inverse, center, middle
 - *Ceteris peribus* - "other things held constant"
 - Marginal effect a feature has on the predictor
 - Plot one line per observation that shows how the observation's prediction changes when a feature changes
+- PDP is average of all ICEs
+
 
 --
 
@@ -178,173 +221,27 @@ For a selected predictor (x)
      | set x to i for all observations
      | apply given ML model
      | estimate predicted value
+     | if PDP: average predicted values across all observations
    end
 ```
 
 ---
 
-# `dalex`
+# Net cost
 
-&lt;iframe src="https://dalex.drwhy.ai/" width="864" height="600px" data-external="1"&gt;&lt;/iframe&gt;
-
-
----
-
-# Create explainer objects
-
-
-```r
-explainer_rf &lt;- explain_tidymodels(
-  model = model_rf,
-  data = scorecard_train %&gt;% select(-debt),
-  y = scorecard_train$debt,
-  label = "random forest"
-)
-## Preparation of a new explainer is initiated
-##   -&gt; model label       :  random forest 
-##   -&gt; data              :  892  rows  11  cols 
-##   -&gt; data              :  tibble converted into a data.frame 
-##   -&gt; target variable   :  892  values 
-##   -&gt; predict function  :  yhat.workflow  will be used ( [33m default [39m )
-##   -&gt; predicted values  :  No value for predict function target column. ( [33m default [39m )
-##   -&gt; model_info        :  package tidymodels , ver. 0.1.4 , task regression ( [33m default [39m ) 
-##   -&gt; predicted values  :  numerical, min =  7166.864 , mean =  16576.72 , max =  24933.06  
-##   -&gt; residual function :  difference between y and yhat ( [33m default [39m )
-##   -&gt; residuals         :  numerical, min =  -4550.392 , mean =  -12.94911 , max =  5051.676  
-##  [32m A new explainer has been created! [39m
-
-explainer_glmnet &lt;- explain_tidymodels(
-  model = model_glmnet,
-  data = scorecard_train %&gt;% select(-debt),
-  y = scorecard_train$debt,
-  label = "penalized regression"
-)
-## Preparation of a new explainer is initiated
-##   -&gt; model label       :  penalized regression 
-##   -&gt; data              :  892  rows  11  cols 
-##   -&gt; data              :  tibble converted into a data.frame 
-##   -&gt; target variable   :  892  values 
-##   -&gt; predict function  :  yhat.workflow  will be used ( [33m default [39m )
-##   -&gt; predicted values  :  No value for predict function target column. ( [33m default [39m )
-##   -&gt; model_info        :  package tidymodels , ver. 0.1.4 , task regression ( [33m default [39m ) 
-##   -&gt; predicted values  :  numerical, min =  4548.953 , mean =  16563.77 , max =  23797.7  
-##   -&gt; residual function :  difference between y and yhat ( [33m default [39m )
-##   -&gt; residuals         :  numerical, min =  -9382.904 , mean =  -1.172988e-11 , max =  8285.439  
-##  [32m A new explainer has been created! [39m
-```
+&lt;img src="index_files/figure-html/pdp-netcost-1.png" width="864" /&gt;
 
 ---
 
-# Extract observations to explain
+# Type
 
-
-```r
-uchi &lt;- filter(.data = scorecard, name == "University of Chicago") %&gt;%
-  select(-unitid, -name) %&gt;%
-  # convert factor to character columns
-  mutate(across(.cols = where(is.factor), .f = as.character)) %&gt;%
-  # needs to be plain data frame, otherwise issues
-  as.data.frame()
-uchi
-##   state               type admrate satavg  cost netcost avgfacsal pctpell
-## 1    IL Private, nonprofit  0.0617   1528 78555   27315    166923  0.1135
-##   comprate  firstgen  debt locale
-## 1   0.9473 0.2024353 13000   City
-```
+&lt;img src="index_files/figure-html/pdp-type-1.png" width="864" /&gt;
 
 ---
 
-# Create prediction profile
+class: inverse, center, middle
 
-
-```r
-ice_rf &lt;- predict_profile(
-  explainer = explainer_rf,
-  new_observation = uchi
-)
-ice_rf
-## Top profiles    : 
-##     state               type admrate satavg  cost netcost avgfacsal pctpell
-## 1      AL Private, nonprofit  0.0617   1528 78555   27315    166923  0.1135
-## 1.1    AR Private, nonprofit  0.0617   1528 78555   27315    166923  0.1135
-## 1.2    AZ Private, nonprofit  0.0617   1528 78555   27315    166923  0.1135
-## 1.3    CA Private, nonprofit  0.0617   1528 78555   27315    166923  0.1135
-## 1.4    CO Private, nonprofit  0.0617   1528 78555   27315    166923  0.1135
-## 1.5    CT Private, nonprofit  0.0617   1528 78555   27315    166923  0.1135
-##     comprate  firstgen locale   _yhat_ _vname_ _ids_       _label_
-## 1     0.9473 0.2024353   City 13974.27   state     1 random forest
-## 1.1   0.9473 0.2024353   City 13974.27   state     1 random forest
-## 1.2   0.9473 0.2024353   City 13949.53   state     1 random forest
-## 1.3   0.9473 0.2024353   City 13960.77   state     1 random forest
-## 1.4   0.9473 0.2024353   City 13965.77   state     1 random forest
-## 1.5   0.9473 0.2024353   City 13995.95   state     1 random forest
-## 
-## 
-## Top observations:
-##   state               type admrate satavg  cost netcost avgfacsal pctpell
-## 1    IL Private, nonprofit  0.0617   1528 78555   27315    166923  0.1135
-##   comprate  firstgen locale   _yhat_       _label_ _ids_
-## 1   0.9473 0.2024353   City 13988.02 random forest     1
-```
-
----
-
-# Explain net cost
-
-
-```r
-plot(ice_rf, variables = "netcost")
-```
-
-&lt;img src="index_files/figure-html/ice-netcost-1.png" width="864" /&gt;
-
----
-
-# Explain locale
-
-
-```r
-plot(ice_rf, variables = "locale", variable_type = "categorical", categorical_type = "bars")
-```
-
-&lt;img src="index_files/figure-html/ice-type-1.png" width="864" /&gt;
-
----
-
-# Multiple variables
-
-
-```r
-plot(ice_rf)
-```
-
-&lt;img src="index_files/figure-html/ice-all-1.png" width="864" /&gt;
-
----
-
-# Multiple models
-
-
-```r
-ice_glmnet &lt;- predict_profile(
-  explainer = explainer_glmnet,
-  new_observation = uchi
-)
-
-plot(ice_glmnet, ice_rf)
-```
-
-&lt;img src="index_files/figure-html/ice-netcost-both-mods-1.png" width="864" /&gt;
-
----
-
-# Individual conditional expectation
-
-### Pros
-
-- Uniform
-- Easy to interpret
-- Graphical representation
+# Local methods
 
 ---
 
@@ -359,19 +256,6 @@ class: inverse, center, middle
 
 # LIME
 
-
----
-
-class: inverse, center, middle
-
-# Permutation-based feature importance
-
-
----
-
-class: inverse, center, middle
-
-# Partial dependence plots
 
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>

@@ -404,7 +404,7 @@ class: inverse, center, middle
 
 ---
 
-# Explain the University of Chicago
+# $10$ nearest neighbors
 
 ```{r}
 # prepare the recipe
@@ -432,7 +432,42 @@ explanation_kknn <- explain(
   n_features = 10)
 
 plot_features(explanation_kknn) +
-  theme_minimal(base_size = rcfss::base_size)
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "bottom")
+```
+
+---
+
+# Random forest
+
+```{r}
+# prepare the recipe
+prepped_rec_rf <- extract_recipe(rf_wf)
+
+# write a function to bake the observation
+bake_rf <- function(x) {
+  bake(
+    prepped_rec_rf,
+    new_data = x
+  )
+}
+
+# create explainer object
+lime_explainer_rf <- lime(
+  x = scorecard_train,
+  model = extract_fit_parsnip(rf_wf),
+  preprocess = bake_rf
+)
+
+# top 5 features
+explanation_rf <- explain(
+  x = both,
+  explainer = lime_explainer_rf,
+  n_features = 10)
+
+plot_features(explanation_rf) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "bottom")
 ```
 
 

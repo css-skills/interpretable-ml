@@ -60,7 +60,6 @@ shap_rf <- predict_parts(
 plot(shap_rf)
 
 # LIME
-# DON'T USE GLMNET FOR LIME - TOO CONFUSING TO INTERPRET
 # prepare the recipe
 prepped_rec_rf <- extract_recipe(model_rf)
 prepped_rec_glmnet <- extract_recipe(model_glmnet)

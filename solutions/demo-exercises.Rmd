@@ -1,0 +1,231 @@
+---
+title: "Interpreting and explaining machine learning models"
+output: html_document
+---
+
+```{r packages}
+library(tidyverse)
+library(tidymodels)
+library(ranger)
+library(glmnet)
+library(kknn)
+library(here)
+library(DALEX)
+library(DALEXtra)
+library(lime)
+library(rcfss)
+
+set.seed(123)
+theme_set(theme_minimal())
+```
+
+# Import models
+
+```{r}
+load(here("data", "models.Rdata"))
+```
+
+## Create explainer objects
+
+```{r}
+explainer_glmnet <- explain_tidymodels(
+  model = glmnet_wf,
+  data = scorecard_train %>% select(-debt),
+  y = scorecard_train$debt,
+  label = "penalized regression"
+)
+
+explainer_rf <- explain_tidymodels(
+  model = rf_wf,
+  data = scorecard_train %>% select(-debt),
+  y = scorecard_train$debt,
+  label = "random forest"
+)
+
+explainer_kknn <- explain_tidymodels(
+  model = kknn_wf,
+  data = scorecard_train %>% select(-debt),
+  y = scorecard_train$debt,
+  label = "k nearest neighbors"
+)
+```
+
+# Global interpretation methods
+
+## Imputation-based feature importance
+
+```{r}
+# random forest model first
+vip_rf <- model_parts(explainer_rf)
+plot(vip_rf)
+
+# adjust sampling
+## N = 100
+model_parts(explainer_rf, N = 100) %>%
+  plot()
+
+## all observations
+model_parts(explainer_rf, N = 100) %>%
+  plot()
+
+# compare to the glmnet model
+vip_glmnet <- model_parts(explainer_glmnet, N = NULL)
+plot(vip_glmnet)
+
+# compare to the kknn model
+vip_kknn <- model_parts(explainer_kknn, N = NULL)
+plot(vip_kknn)
+```
+
+## Partial dependent plots
+
+```{r}
+# basic pdp for RF model and netcost variable
+pdp_netcost <- model_profile(explainer_rf, variables = "netcost", N = 100)
+
+## just the PDP
+plot(pdp_netcost)
+
+## PDP with ICE curves
+plot(pdp_netcost, geom = "profiles")
+
+## larger sample size
+model_profile(explainer_rf, variables = "netcost", N = 500) %>%
+  plot(geom = "profiles")
+
+# group by type
+pdp_cost_group <- model_profile(explainer_rf, variables = "netcost", groups = "type", N = NULL)
+plot(pdp_cost_group, geom = "profiles")
+
+# cluster ICEs
+pdp_cost_cl <- model_profile(explainer_rf, variables = "netcost", k = 3, N = NULL)
+plot(pdp_cost_cl, geom = "profiles")
+
+# PDP for type
+model_profile(explainer_rf, variables = "state", N = NULL) %>%
+  plot()
+```
+
+### Exercises
+
+```{r}
+# create PDP for all numeric variables in kknn model
+model_profile(explainer_kknn, N = 100) %>%
+  plot()
+
+# create PDP + ICE curves for netcost from all three models
+model_profile(explainer_rf, variables = "netcost", N = NULL) %>% plot(geom = "profiles")
+model_profile(explainer_glmnet, variables = "netcost", N = NULL) %>% plot(geom = "profiles")
+model_profile(explainer_kknn, variables = "netcost", N = NULL) %>% plot(geom = "profiles")
+
+```
+
+# Local explanation methods
+
+## Choose a couple of observations to explain
+
+```{r}
+uchi <- filter(.data = scorecard, name == "University of Chicago") %>%
+  select(-unitid, -name)
+wiu <- filter(.data = scorecard, name == "Western Illinois University") %>%
+  select(-unitid, -name)
+```
+
+## Shapley values
+
+```{r}
+# explain uchicago with rf model
+shap_uchi_rf <- predict_parts(
+  explainer = explainer_rf,
+  new_observation = uchi,
+  type = "shap"
+)
+plot(shap_uchi_rf)
+
+# explain uchicago with kknn model
+shap_uchi_kknn <- predict_parts(
+  explainer = explainer_kknn,
+  new_observation = uchi,
+  type = "shap"
+)
+plot(shap_uchi_kknn)
+
+# increase the number of feature order permutations
+predict_parts(
+  explainer = explainer_kknn,
+  new_observation = uchi,
+  type = "shap",
+  B = 40
+) %>%
+  plot()
+```
+
+### Pair with `ggplot2`
+
+```{r}
+shap_uchi_kknn %>%
+  group_by(variable) %>%
+  mutate(mean_val = mean(contribution)) %>%
+  ungroup() %>%
+  mutate(variable = fct_reorder(variable, abs(mean_val))) %>%
+  ggplot(aes(contribution, variable, fill = mean_val > 0)) +
+  geom_col(data = ~distinct(., variable, mean_val), 
+           aes(mean_val, variable), 
+           alpha = 0.5) +
+  geom_boxplot(width = 0.5) +
+  theme(legend.position = "none") +
+  scale_fill_viridis_d() +
+  labs(y = NULL)
+```
+
+### Exercises
+
+## LIME
+
+```{r}
+# prepare the recipe
+prepped_rec_glmnet <- extract_recipe(glmnet_wf)
+
+# write a function to convert the legislative description to an appropriate matrix object
+bake_glmnet <- function(x) {
+  bake(
+    prepped_rec_glmnet,
+    new_data = x,
+    composition = "dgCMatrix"
+  )
+}
+
+# create explainer object
+lime_explainer_glmnet <- lime(
+  x = scorecard_train,
+  model = extract_fit_parsnip(glmnet_wf),
+  preprocess = bake_glmnet
+)
+
+# top 5 features
+explanation_glmnet <- explain(
+  x = uchi,
+  explainer = lime_explainer_glmnet,
+  n_features = 5)
+
+plot_features(explanation_glmnet)
+
+# top 10 features, increased permutations
+explanation_glmnet <- explain(
+  x = uchi,
+  explainer = lime_explainer_glmnet,
+  n_features = 10,
+  n_permutations = 2000
+  )
+
+plot_features(explanation_glmnet)
+```
+
+## Exercises
+
+
+## Session Info
+
+```{r}
+sessioninfo::session_info()
+```

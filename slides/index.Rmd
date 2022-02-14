@@ -364,11 +364,77 @@ class: inverse, center, middle
 
 # Shapley values
 
+```{r local-obs}
+uchi <- filter(.data = scorecard, name == "University of Chicago") %>%
+  select(-unitid, -name)
+wiu <- filter(.data = scorecard, name == "Western Illinois University") %>%
+  select(-unitid, -name)
+both <- bind_rows(uchi, wiu)
+```
 
 ---
 
 class: inverse, center, middle
 
 # LIME
+
+---
+
+# LIME
+
+* Global $\rightarrow$ local
+* Interpretable model used to explain individual predictions of a black box model
+* Assumes every complex model is linear on a local scale
+* Fit a simple model around a single observation to mimic how the global model behaves at that locality
+* Simple model explains the predictions of the complex model **locally**
+    * Local fidelity
+    * Does not require global fidelity
+
+---
+
+# LIME
+
+1. For each prediction to explain, permute the observation $n$ times
+1. Let the complex model predict the outcome of all permuted observations
+1. Calculate the distance from all permutations to the original observation
+1. Convert the distance to a similarity score
+1. Select $m$ features best describing the complex model outcome from the permuted data
+1. Fit a simple model to the permuted data, explaining the complex model outcome with the $m$ features from the permuted data weighted by its similarity to the original observation
+1. Extract the feature weights from the simple model and use these as explanations for the complex models local behavior
+
+---
+
+# Explain the University of Chicago
+
+```{r}
+# prepare the recipe
+prepped_rec_kknn <- extract_recipe(kknn_wf)
+
+# write a function to bake the observation
+bake_kknn <- function(x) {
+  bake(
+    prepped_rec_kknn,
+    new_data = x
+  )
+}
+
+# create explainer object
+lime_explainer_kknn <- lime(
+  x = scorecard_train,
+  model = extract_fit_parsnip(kknn_wf),
+  preprocess = bake_kknn
+)
+
+# top 5 features
+explanation_kknn <- explain(
+  x = both,
+  explainer = lime_explainer_kknn,
+  n_features = 10)
+
+plot_features(explanation_kknn) +
+  theme_minimal(base_size = rcfss::base_size)
+```
+
+
 
 

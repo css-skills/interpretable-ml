@@ -250,11 +250,44 @@ class: inverse, center, middle
 # Shapley values
 
 
+
 ---
 
 class: inverse, center, middle
 
 # LIME
+
+---
+
+# LIME
+
+* Global `\(\rightarrow\)` local
+* Interpretable model used to explain individual predictions of a black box model
+* Assumes every complex model is linear on a local scale
+* Fit a simple model around a single observation to mimic how the global model behaves at that locality
+* Simple model explains the predictions of the complex model **locally**
+    * Local fidelity
+    * Does not require global fidelity
+
+---
+
+# LIME
+
+1. For each prediction to explain, permute the observation `\(n\)` times
+1. Let the complex model predict the outcome of all permuted observations
+1. Calculate the distance from all permutations to the original observation
+1. Convert the distance to a similarity score
+1. Select `\(m\)` features best describing the complex model outcome from the permuted data
+1. Fit a simple model to the permuted data, explaining the complex model outcome with the `\(m\)` features from the permuted data weighted by its similarity to the original observation
+1. Extract the feature weights from the simple model and use these as explanations for the complex models local behavior
+
+---
+
+# Explain the University of Chicago
+
+&lt;img src="index_files/figure-html/unnamed-chunk-3-1.png" width="864" /&gt;
+
+
 
 
     </textarea>

@@ -26,7 +26,7 @@ theme_set(theme_minimal())
 
 ```{r}
 # load Rdata file with all the data frames and pre-trained models
-load(here("data", "models.Rdata"))
+load(here("data", "models.RData"))
 
 # show pre-trained models
 rf_wf

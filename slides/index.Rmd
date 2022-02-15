@@ -130,7 +130,7 @@ include_graphics(path = "https://media.giphy.com/media/H8LPekEB8uAFXgw97u/giphy.
 
 ```{r get-data, echo = FALSE}
 # import data and model
-load(here("data", "models.Rdata"))
+load(here("data", "models.RData"))
 ```
 
 ```{r skim-data, dependson = "get-data", echo = FALSE}
